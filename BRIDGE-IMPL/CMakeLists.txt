@@ -5,9 +5,9 @@ project(PVR_Minecraft_Bridge VERSION 0.1.0 LANGUAGES C CXX)
 # PVR Minecraft Research — EXP-001 Native Bridge Implementation
 #
 # Objective: Build a minimal, controlled native library for Android ARM64
-# that can be loaded into Minecraft Bedrock process.
+# that can be loaded by a researcher-controlled Android application.
 #
-# This is a research implementation ONLY. Does not contain:
+# This is a research implementation ONLY. It does not contain:
 # - RenderDragon hooks
 # - BGFX interception
 # - PVR renderer code
@@ -16,7 +16,7 @@ project(PVR_Minecraft_Bridge VERSION 0.1.0 LANGUAGES C CXX)
 # Contains ONLY:
 # - Controlled initialization logging marker
 # - Minimal logging infrastructure
-# - Documentation on how to load and test
+# - Documentation on the controlled loading boundary
 # ============================================================================
 
 set(CMAKE_CXX_STANDARD 17)
@@ -73,7 +73,7 @@ endif()
 # ============================================================================
 enable_testing()
 
-# Verify header inclusion (compile-time check)
+# Verify header inclusion and linkability (compile-time check)
 add_executable(check_headers_only
     EXCLUDE_FROM_ALL
     test/check_headers.c
@@ -89,7 +89,7 @@ add_test(
 # ============================================================================
 # Installation
 # ============================================================================
-# Copy the built library to a known location for packaging/deployment
+# Copy the built library to a known location for controlled packaging/testing.
 install(TARGETS pvr_minecraft_bridge
     LIBRARY DESTINATION lib/arm64-v8a
 )
