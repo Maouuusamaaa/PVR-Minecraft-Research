@@ -2,6 +2,7 @@ package com.pvr.controlledrendertarget;
 
 import android.app.Activity;
 import android.os.Bundle;
+import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.widget.TextView;
@@ -13,7 +14,7 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
     private SurfaceView surface;
     private TextView status;
 
-    private static native void nativeStart(SurfaceHolder holder);
+    private static native void nativeStart(Surface surface);
     private static native void nativeStop();
 
     @Override public void onCreate(Bundle state) {
@@ -28,7 +29,15 @@ public final class MainActivity extends Activity implements SurfaceHolder.Callba
         surface.getHolder().addCallback(this);
     }
 
-    @Override public void surfaceCreated(SurfaceHolder holder) { nativeStart(holder); status.setText("PVR Controlled Render Target\nRenderer starting..."); }
+    @Override public void surfaceCreated(SurfaceHolder holder) {
+        nativeStart(holder.getSurface());
+        status.setText("PVR Controlled Render Target\nRenderer starting...");
+    }
+
     @Override public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) { }
-    @Override public void surfaceDestroyed(SurfaceHolder holder) { nativeStop(); status.setText("Renderer stopped"); }
+
+    @Override public void surfaceDestroyed(SurfaceHolder holder) {
+        nativeStop();
+        status.setText("Renderer stopped");
+    }
 }
