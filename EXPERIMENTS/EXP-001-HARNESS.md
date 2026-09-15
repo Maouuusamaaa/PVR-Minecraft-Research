@@ -95,11 +95,14 @@ It performs the following operations:
 4. Installs Android API 33, NDK `26.3.11579264`, and CMake `3.22.1`.
 5. Cross-builds `BRIDGE-IMPL` for `arm64-v8a`.
 6. Copies the resulting bridge into `app/src/main/jniLibs/arm64-v8a/`.
-7. Builds the release APK with Gradle 8.6.
-8. Verifies the APK contains both:
+7. Builds the debug APK with Gradle 8.6 using the standard Gradle/Android debug
+   keystore; no private keystore or password is stored in the repository.
+8. Verifies the APK signature, package metadata, zip alignment, and that the
+   APK contains both:
    - `lib/arm64-v8a/libpvr_minecraft_bridge.so`
    - `lib/arm64-v8a/libexp001_harness.so`
-9. Uploads the APK and evidence as the `exp-001-android-harness` Actions artifact.
+9. Uploads the signed APK and evidence as the
+   `exp-001-android-harness-signed` Actions artifact.
 
 ## APK Verification
 
@@ -110,6 +113,12 @@ unzip -l exp-001-android-harness.apk
 ```
 
 The required native entries are checked with exact `arm64-v8a` paths. The workflow also records the APK size, APK SHA-256, and bridge SHA-256 in `EXP-001-HARNESS-BUILD.txt`.
+
+The signed APK is checked with the Android Build Tools `apksigner`, `aapt2`,
+and `zipalign`. The checks require a valid signature, one signer with the
+standard Android debug certificate, the package identity
+`com.pvr.exp001.harness`, and successful four-byte alignment. These checks are
+package/signing checks only; they do not execute the APK.
 
 ## Runtime Procedure
 
@@ -157,29 +166,40 @@ BRIDGE INITIALIZATION: NOT TESTED
 MINECRAFT LOADING: NOT TESTED
 ```
 
-GitHub Actions run [34979605711](https://github.com/Maouuusamaaa/PVR-Minecraft-Research/actions/runs/34979605711)
-completed successfully for commit `860e13c4cb04dd183577fefc918bfffcf767aded`.
+GitHub Actions run [34982585986](https://github.com/Maouuusamaaa/PVR-Minecraft-Research/actions/runs/34982585986)
+completed successfully for commit `9595a2f154b8f5319ecb0da3fbe3d5dd4f009f6f`.
 
 Actual APK evidence:
 
 | Field | Value |
 |---|---|
-| Filename | `app-arm64-v8a-release-unsigned.apk` |
-| Size | `40022` bytes |
-| SHA-256 | `d9abde983df14c24ab314d0a2acccb5e2cc4aab80cd4a32abba0cca8ae133f61` |
+| Filename | `app-arm64-v8a-debug.apk` |
+| Size | `44115` bytes |
+| SHA-256 | `22e70a750539d317a80ea84f331f54b475728c86f3ef52b76ef19f71e7ed2b0b` |
 | APK entries | `lib/arm64-v8a/libexp001_harness.so`, `lib/arm64-v8a/libpvr_minecraft_bridge.so` |
 | Embedded bridge SHA-256 | `ab85db08a9ddf24fbc6aafa67d8b74987ddad314d93e2c08b15757a2a04b4228` |
+| Signing | Standard Android Debug certificate; APK Signature Scheme v2 verified |
+| Certificate DN | `C=US, O=Android, CN=Android Debug` |
+| Certificate SHA-256 | `475e1c7bc56b60c3e2dd946038106755c07c6c05ce1ed395d4269dd4cf7da10a` |
+| Package | `com.pvr.exp001.harness` |
+| Native code | `arm64-v8a` |
+| Zip alignment | **PASS** |
 | Runtime | **NOT TESTED** |
 
-The embedded bridge hash differs from the earlier standalone build hash because
-the harness workflow rebuilds the bridge from source in a separate job; the
-workflow verifies the resulting artifact's packaging and source build, but does
-not claim bit-for-bit reproducibility across independent native builds. The
-earlier standalone artifact remains identified by
+The artifact is available as the GitHub Actions artifact
+`exp-001-android-harness-signed`. The downloaded APK hash was independently
+recomputed and matched the workflow evidence. The embedded bridge hash differs
+from the earlier standalone build hash because the harness workflow rebuilds the
+bridge from source in a separate job; the workflow verifies the resulting
+artifact's packaging and source build, but does not claim bit-for-bit
+reproducibility across independent native builds. The earlier standalone
+artifact remains identified by
 `8a986f71e7a670f8f0141c07a8330174b3e1fb6e6d7eddf47b91bbd639826a73`.
 
-These results confirm APK creation and ARM64 packaging only. They do not confirm
-that Android loaded the library or that the bridge constructor emitted a marker.
+These results confirm signed APK creation, certificate presence, package
+identity, ARM64 packaging, and static native-library inclusion only. They do
+not confirm that Android loaded the library or that the bridge constructor
+emitted a marker.
 
 ## Limitations
 
