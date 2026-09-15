@@ -36,15 +36,18 @@ The project must not claim full integration or renderer replacement until experi
 - TESTED: GitHub connector can currently read this repository.
 - TESTED: GitHub connector can currently create files on the default branch. A harmless connector test created `github-connector-test.txt` with commit `525682550f357d3162ead0585af966bd9f91356b`. This is current-chat evidence; older 403 failures remain historical failures and are not erased.
 - CONFIRMED: `README.md` defines this repository as research, architecture, experiments and technical documentation for integrating PVR with Minecraft Bedrock RenderDragon on Android.
-- CURRENT GAP: `MASTER_LOG.md` did not exist before this commit; this file establishes the current consolidated research state.
+- TESTED: `MASTER_LOG.md` now exists as the consolidated research state.
+- TESTED: `EXPERIMENTS/EXP-001.md` now records the controlled native-library-loading experiment design and current evidence boundary.
 
 ## RenderDragon / bgfx Research Status
 
 - CONFIRMED: current public RenderDragon-adjacent projects expose and work with BGFX shader/material infrastructure.
-- CONFIRMED: BetterRenderDragon has an Android build path and a shared-library target; its build configuration uses an Android preloader and removes Windows-specific patch/UI sources for Android.
+- CONFIRMED: BetterRenderDragon has an Android-related build/loading path and a shared-library target; its Android configuration is distinct from the Windows renderer-hooking path.
 - CONFIRMED: BetterRenderDragon uses Kiero on its Windows build path, demonstrating a renderer-hooking approach in that project. This does not prove the Android interception point.
 - CONFIRMED: public RenderDragon shader repositories contain reconstructed BGFX SC and GLSL shader code generated from material.bin data.
 - CONFIRMED: bgfx's public API records rendering commands such as `bgfx::submit()` and advances frame processing with `bgfx::frame()`; bgfx also supports multi-threaded command recording through `bgfx::Encoder`.
+- CONFIRMED: MaterialBinLoader documents an Android ARM/ARM64 native-library loading approach by adding a dependency to `libminecraftpe.so` and rebuilding/signing the modified package.
+- CONFIRMED: KafkaLauncher publicly documents an alternative Android forwarder architecture that locates the real Minecraft native library, resolves the native activity entry point, installs hooks, and forwards execution to the original entry point.
 - PROBABLE: a useful research boundary exists around the RenderDragon frame-building / command-recording layer and its BGFX submission path.
 - HYPOTHESIS: the production Minecraft Android binary exposes a stable, hookable function corresponding directly to BGFX `submit()` or a single backend submission function.
 - UNKNOWN: exact production Android symbol/address/call chain for frame start, render builder, encoder/command recording, BGFX submit, backend execution and present.
@@ -61,9 +64,11 @@ The project must not claim full integration or renderer replacement until experi
 
 ### EXP-001 — Native Library Loading
 
-Status: NOT STARTED.
+Status: NOT STARTED — experiment design documented; runtime test still required.
 
 Objective: prove that a controlled native bridge/library can load in the target Minecraft Android process.
+
+Current evidence: public MaterialBinLoader and KafkaLauncher projects demonstrate native-loading/hooking architectures on Android, but neither proves compatibility with the user's current Minecraft version/device.
 
 ### EXP-002 — Target Detection
 
@@ -117,7 +122,9 @@ Status: NOT STARTED.
 
 Do not begin by importing the entire PVR renderer into Minecraft.
 
-First map the RenderDragon Android rendering path using public source/reference material and controlled experiments. The minimum desired map is:
+The next runtime milestone is EXP-001. Before attempting renderer interception, prove the smallest possible fact: a controlled native bridge can initialize in the target Minecraft Android process.
+
+After EXP-001 succeeds, map the relevant native/render module for EXP-002. The minimum desired rendering model remains:
 
 `Frame Start -> Render Builder / Render Pass Construction -> BGFX Command Recording -> BGFX Submit / Encoder -> Backend Execution -> GPU -> Present`
 
@@ -133,4 +140,4 @@ Do not commit proprietary Minecraft APKs, Mojang native libraries, extracted pro
 
 ## Latest Research Finding
 
-Public evidence strongly supports BGFX as an important RenderDragon-adjacent shader/material abstraction and supports BGFX's own command-recording/frame-processing model. Public BetterRenderDragon code also demonstrates that Android-specific native loading/preloading and Windows renderer hooking are separate implementation paths. Therefore, the exact Android production interception point remains an UNKNOWN/HYPOTHESIS and must be experimentally established rather than inferred from BGFX API names.
+The evidence base now includes two concrete public Android-native integration patterns: MaterialBinLoader documents adding a native ARM/ARM64 dependency to `libminecraftpe.so`, while KafkaLauncher documents a native forwarder that locates the real Minecraft library and installs hooks before forwarding to the original native activity entry point. These establish that native process-level integration patterns exist publicly, but they do not prove compatibility with the target Minecraft version or identify the RenderDragon production interception point. Therefore EXP-001 remains NOT STARTED at runtime, and the project must not yet claim Minecraft/PVR integration.
