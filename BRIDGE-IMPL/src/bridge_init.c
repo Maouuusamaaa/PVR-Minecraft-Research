@@ -60,6 +60,8 @@ static void pvr_bridge_constructor(void)
  */
 int bridge_initialize(void)
 {
-    bridge_log_info("bridge_initialize() called explicitly");
+    pid_t pid = getpid();
+    pid_t tid = gettid();
+    bridge_log_info("bridge_initialize() called explicitly pid=%d tid=%d", (int)pid, (int)tid);
     return 0;
 }
