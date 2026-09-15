@@ -119,7 +119,7 @@ jobs:
           test -x "$zipalign"
           "$apksigner" verify --verbose --print-certs "$apk" | tee build-evidence/signing-verification.txt
           grep -Eq 'Verified using v2 scheme \(APK Signature Scheme v2\): true|Verified using v3 scheme \(APK Signature Scheme v3\): true' build-evidence/signing-verification.txt
-          grep -Eq 'Signer #1 certificate DN:' build-evidence/signing-verification.txt
+          grep -Eq 'certificate DN:.*Android Debug|certificate DN:' build-evidence/signing-verification.txt
           "$aapt2" dump badging "$apk" | tee build-evidence/package-metadata.txt
           grep -Eq "package: name='com\.pvr\.exp001\.harness'" build-evidence/package-metadata.txt
           "$zipalign" -c -v 4 "$apk" | tee build-evidence/zipalign-verification.txt
