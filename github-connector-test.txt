@@ -1,0 +1,7 @@
+GitHub Connector Test
+
+This file was created through the connected GitHub integration.
+
+Purpose: verify that the connector can create files in Maouuusamaaa/PVR-Minecraft-Research.
+
+Created: 2026-09-15
