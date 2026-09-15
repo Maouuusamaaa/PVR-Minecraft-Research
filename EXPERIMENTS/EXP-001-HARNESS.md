@@ -150,14 +150,36 @@ The workflow intentionally does not claim these facts because it only builds and
 Current status:
 
 ```text
-APK BUILD: NOT YET VERIFIED
-ARM64 PACKAGING: NOT YET VERIFIED
+APK BUILD: CONFIRMED
+ARM64 PACKAGING: CONFIRMED
 ANDROID NATIVE LOADING: NOT TESTED
 BRIDGE INITIALIZATION: NOT TESTED
 MINECRAFT LOADING: NOT TESTED
 ```
 
-These statuses must only be updated from actual workflow and device evidence. A successful APK build would change only the APK build and packaging classifications; it would not change Minecraft loading.
+GitHub Actions run [34979605711](https://github.com/Maouuusamaaa/PVR-Minecraft-Research/actions/runs/34979605711)
+completed successfully for commit `860e13c4cb04dd183577fefc918bfffcf767aded`.
+
+Actual APK evidence:
+
+| Field | Value |
+|---|---|
+| Filename | `app-arm64-v8a-release-unsigned.apk` |
+| Size | `40022` bytes |
+| SHA-256 | `d9abde983df14c24ab314d0a2acccb5e2cc4aab80cd4a32abba0cca8ae133f61` |
+| APK entries | `lib/arm64-v8a/libexp001_harness.so`, `lib/arm64-v8a/libpvr_minecraft_bridge.so` |
+| Embedded bridge SHA-256 | `ab85db08a9ddf24fbc6aafa67d8b74987ddad314d93e2c08b15757a2a04b4228` |
+| Runtime | **NOT TESTED** |
+
+The embedded bridge hash differs from the earlier standalone build hash because
+the harness workflow rebuilds the bridge from source in a separate job; the
+workflow verifies the resulting artifact's packaging and source build, but does
+not claim bit-for-bit reproducibility across independent native builds. The
+earlier standalone artifact remains identified by
+`8a986f71e7a670f8f0141c07a8330174b3e1fb6e6d7eddf47b91bbd639826a73`.
+
+These results confirm APK creation and ARM64 packaging only. They do not confirm
+that Android loaded the library or that the bridge constructor emitted a marker.
 
 ## Limitations
 
