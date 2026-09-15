@@ -3,6 +3,8 @@
 #include <EGL/egl.h>
 #include <GLES2/gl2.h>
 #include <jni.h>
+#include <unistd.h>
+#include <sys/syscall.h>
 #include <atomic>
 #include <chrono>
 #include <thread>
