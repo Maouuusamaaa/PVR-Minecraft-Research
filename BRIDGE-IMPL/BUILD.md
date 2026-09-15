@@ -167,12 +167,54 @@ The following are source/configuration properties, not execution evidence:
 - The initialization marker is defined in source.
 - No RenderDragon hooks, BGFX interception, or Minecraft proprietary code are present.
 
-**Current verification record (2026-09-15):**
+**Initial local verification record (2026-09-15):**
 
 `ANDROID ARM64 BUILD NOT EXECUTED — Android NDK, CMake, and compiler are unavailable in the audit environment.`
 
-Therefore no claim is made here that `libpvr_minecraft_bridge.so` has been
-compiled, linked, or verified as an ARM64 ELF artifact.
+That local limitation was later resolved by the reproducible GitHub Actions
+workflow documented below; the local environment itself did not perform the
+Android build.
+
+## Verified Build Evidence
+
+GitHub Actions run [34976852843](https://github.com/Maouuusamaaa/PVR-Minecraft-Research/actions/runs/34976852843)
+completed successfully on 2026-09-15 for commit `3f5c64e`.
+
+The workflow used the following environment:
+
+- Runner: `ubuntu-24.04`
+- OS: Ubuntu 24.04
+- CMake: `3.22.1-g37088a8`
+- Ninja: `1.10.2`
+- Android NDK: `26.3.11579264`
+- Android API: `android-33`
+- ABI: `arm64-v8a`
+
+The following stages passed:
+
+1. Host configure, `check_headers_only` build, and `HeaderInclusionCheck` CTest.
+2. Android ARM64 configure with `android.toolchain.cmake`.
+3. Android ARM64 build of `pvr_minecraft_bridge`.
+4. ELF, dependency, symbol, and artifact verification.
+
+Verified artifact:
+
+- Filename: `libpvr_minecraft_bridge.so`
+- Size: `13024` bytes
+- Type: `ELF 64-bit LSB shared object`
+- Architecture: `ARM aarch64` / `AArch64`
+- SONAME: `libpvr_minecraft_bridge.so`
+- SHA-256: `8a986f71e7a670f8f0141c07a8330174b3e1fb6e6d7eddf47b91bbd639826a73`
+
+Dynamic dependencies reported by `llvm-readelf` were `liblog.so`, `libm.so`,
+`libdl.so`, and `libc.so`; no Minecraft proprietary library dependency was
+present. The dynamic symbol table contained `bridge_initialize` and the
+bridge logging functions. The generated `.so` and text evidence are stored
+in the GitHub Actions artifact `exp-001-android-arm64` for this run.
+
+This evidence confirms the source-to-ARM64-ELF build path only. It does not
+confirm that the library has been loaded into Minecraft. Runtime status remains
+`NOT TESTED`.
 
 ## Evidence Required for TESTED
 
@@ -247,4 +289,4 @@ After EXP-001 TESTED (runtime observation on device):
 ---
 
 **Last Updated**: EXP-001 build configuration audit
-**Status**: BUILD CONFIGURATION FIXED — BUILD NOT VERIFIED
+**Status**: ANDROID ARM64 BUILD CONFIRMED via GitHub Actions; runtime NOT TESTED

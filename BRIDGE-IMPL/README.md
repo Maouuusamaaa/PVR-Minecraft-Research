@@ -51,12 +51,13 @@ ctest --verbose
 
 ## Status
 
-- **BUILD CONFIGURATION FIXED** (source/configuration reviewed; build not verified in the current environment)
+- **ANDROID ARM64 BUILD CONFIRMED** via GitHub Actions run [34976852843](https://github.com/Maouuusamaaa/PVR-Minecraft-Research/actions/runs/34976852843)
 - **TESTED** ⏳ (awaiting runtime observation on target device)
 
-The current audit environment does not contain Android NDK, CMake, or a C
-compiler. Consequently, no Android ARM64 build or `libpvr_minecraft_bridge.so`
-artifact is claimed here.
+The workflow produced and verified `libpvr_minecraft_bridge.so` for
+`arm64-v8a`/`android-33`. The artifact and evidence are available in the
+GitHub Actions artifact `exp-001-android-arm64`. This confirms the build path,
+not runtime loading into Minecraft.
 
 ## Next Steps
 
