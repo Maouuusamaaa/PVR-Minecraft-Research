@@ -29,7 +29,7 @@ jobs:
       - name: Install Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.6'
+          gradle-version: '8.7'
 
       - name: Build debug APK
         working-directory: EXPERIMENTS/CONTROLLED-RENDER-TARGET
