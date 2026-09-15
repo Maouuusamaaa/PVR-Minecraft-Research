@@ -37,8 +37,8 @@ The project must not claim full integration or renderer replacement until experi
 - TESTED: GitHub connector can currently create files on the default branch. A harmless connector test created `github-connector-test.txt` with commit `525682550f357d3162ead0585af966bd9f91356b`. This is current-chat evidence; older 403 failures remain historical failures and are not erased.
 - CONFIRMED: `README.md` defines this repository as research, architecture, experiments and technical documentation for integrating PVR with Minecraft Bedrock RenderDragon on Android.
 - TESTED: `MASTER_LOG.md` exists as the consolidated research state.
-- TESTED: `EXPERIMENTS/EXP-001.md` records the controlled native-library-loading experiment design and current evidence boundary.
-- TESTED: `EXPERIMENTS/EXP-002.md` now records the target-detection experiment design and evidence boundary.
+- TESTED: `EXPERIMENTS/EXP-001.md` records the controlled native-library-loading experiment and target/runtime evidence boundary.
+- TESTED: `EXPERIMENTS/EXP-002.md` records the target-detection experiment design and evidence boundary.
 
 ## RenderDragon / bgfx Research Status
 
@@ -57,7 +57,7 @@ The project must not claim full integration or renderer replacement until experi
 ## Main Blockers
 
 1. Exact production RenderDragon Android frame/render submission path is not proven.
-2. A minimal native bridge has not yet been demonstrated inside the Minecraft Android process.
+2. A minimal native bridge has **not yet been demonstrated inside the Minecraft Android process**. The controlled Android harness has now demonstrated native loading and bridge initialization in its own process only.
 3. PVR invocation from the Minecraft render/frame path is not proven.
 4. PVR GPU work occurring inside Minecraft is not proven.
 5. No partial renderer-subsystem takeover has been demonstrated.
@@ -66,11 +66,17 @@ The project must not claim full integration or renderer replacement until experi
 
 ### EXP-001 — Native Library Loading
 
-Status: NOT STARTED — experiment design documented; runtime test still required.
+Status: **CONTROLLED ANDROID RUNTIME CHECKPOINT CONFIRMED; MINECRAFT TARGET NOT TESTED.**
 
-Objective: prove that a controlled native bridge/library can load in the target Minecraft Android process.
+Objective: prove that a controlled native bridge can load in the target Minecraft Android process.
 
-Current evidence: public MaterialBinLoader and KafkaLauncher projects demonstrate native-loading/hooking architectures on Android, but neither proves compatibility with the user's current Minecraft version/device.
+Current confirmed checkpoint: the signed ARM64 Android harness was installed and launched on the user's Android 13 device. The bridge constructor emitted `PVR_BRIDGE_LOADED`, reported PID/TID `8936`, completed bridge initialization, and `bridge_initialize()` was called explicitly.
+
+This is valid runtime evidence for the controlled Android loading path only. It is not evidence of Minecraft loading.
+
+Runtime evidence record: `EXPERIMENTS/EXP-001-HARNESS-RUNTIME-2026-09-15.md`.
+
+Target Minecraft loading remains `NOT TESTED` because no legitimate, reproducible and reversible target-side loading method has yet been established in the repository.
 
 ### EXP-002 — Target Detection
 
@@ -128,9 +134,11 @@ Status: NOT STARTED.
 
 Do not begin by importing the entire PVR renderer into Minecraft.
 
-The next runtime milestone is EXP-001. Before attempting renderer interception, prove the smallest possible fact: a controlled native bridge can initialize in the target Minecraft Android process.
+The controlled Android native-loading checkpoint for EXP-001 is now complete. The remaining target-side milestone is to determine whether the bridge can be loaded into the user's authorized Minecraft test installation through a legitimate, reproducible and reversible mechanism.
 
-After EXP-001 succeeds, use EXP-002 to map the relevant native/render target from target-side evidence. The minimum desired rendering model remains:
+If that target-side boundary is established and tested successfully, complete EXP-001 and then use EXP-002 to map the relevant native/render target from target-side evidence. If no legitimate loading method is available, record the Minecraft portion as BLOCKED/NOT TESTED rather than substituting harness evidence.
+
+The minimum desired rendering model remains:
 
 `Frame Start -> Render Builder / Render Pass Construction -> BGFX Command Recording -> BGFX Submit / Encoder -> Backend Execution -> GPU -> Present`
 
@@ -146,4 +154,4 @@ Do not commit proprietary Minecraft APKs, Mojang native libraries, extracted pro
 
 ## Latest Research Finding
 
-Current public research strengthens the evidence for distinct Android-native loading paths: MaterialBinLoader documents ARM/ARM64 dependency injection into `libminecraftpe.so`, KafkaLauncher documents a native forwarder architecture, and the current BetterRenderDragon build configuration uses a dedicated Android `preloader_android` dependency while separating Windows-specific hook dependencies. These establish that Android-native integration mechanisms exist publicly, but they do not identify the production RenderDragon interception point for the target Minecraft version. Therefore EXP-001 remains NOT STARTED at runtime, while EXP-002 is now fully documented and ready for target-side observation.
+On 2026-09-15 the controlled Android harness reached a confirmed runtime checkpoint on the user's Android device: the signed `com.pvr.exp001.harness` APK installed successfully, launched, loaded the bridge, emitted `PVR_BRIDGE_LOADED`, and executed `bridge_initialize()` in PID `8936`. This closes the lower-level Android native-loading checkpoint. It does not establish Minecraft loading, RenderDragon reachability, BGFX interception, PVR execution inside Minecraft, or GPU work. The project therefore remains blocked at the Minecraft loading boundary until an authorized reproducible target-side loading method is available.
