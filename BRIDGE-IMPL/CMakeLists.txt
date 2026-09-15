@@ -53,7 +53,7 @@ target_include_directories(pvr_minecraft_bridge
 
 # Set shared library output
 set_target_properties(pvr_minecraft_bridge PROPERTIES
-    PREFIX ""
+    PREFIX "lib"
     SUFFIX ".so"
     OUTPUT_NAME "pvr_minecraft_bridge"
 )
