@@ -54,7 +54,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          set +e
           yes | "$SDKMANAGER" --licenses >/dev/null
+          sdkmanager_status="${PIPESTATUS[1]}"
+          set -e
+          test "$sdkmanager_status" -eq 0
           "$SDKMANAGER" --install \
             "platform-tools" \
             "platforms;android-33" \
