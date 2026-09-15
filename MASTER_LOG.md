@@ -39,19 +39,22 @@ The project must not claim full integration or renderer replacement until experi
 - TESTED: `MASTER_LOG.md` exists as the consolidated research state.
 - TESTED: `EXPERIMENTS/EXP-001.md` records the controlled native-library-loading experiment and target/runtime evidence boundary.
 - TESTED: `EXPERIMENTS/EXP-002.md` records the revised observation-first target-detection experiment.
+- TESTED: `EXPERIMENTS/EXP-002-BASELINE-2026-09-15.md` records the frozen target baseline and current public-source review.
 - TESTED: `EXPERIMENTS/EXP-001-AUDIT-2026-09-15.md` records the final EXP-001 boundary decision.
 - TESTED: `EXPERIMENTS/EXP-001-DECISION-2026-09-15.md` records the formal closure and revised EXP-002 gate.
 
 ## RenderDragon / bgfx Research Status
 
 - CONFIRMED: current public RenderDragon-adjacent projects expose and work with BGFX shader/material infrastructure.
+- CONFIRMED: public Android RenderDragon shader projects document support for current 1.26-era Bedrock versions and Android material/shader workflows.
+- CONFIRMED: Microsoft 1.26.0 documentation contains a RenderDragon for Creators Experiment section and records Android/PlayStation support for colored block lights in the Vibrant Visuals preview.
 - CONFIRMED: BetterRenderDragon has an Android-related build/loading path and a shared-library target; its Android configuration is distinct from the Windows renderer-hooking path.
 - CONFIRMED: BetterRenderDragon uses Kiero on its Windows build path, demonstrating a renderer-hooking approach in that project. This does not prove the Android interception point.
 - CONFIRMED: a current public BetterRenderDragon Android configuration uses `preloader_android`, showing a distinct Android loading path rather than assuming the Windows hook stack applies unchanged.
 - CONFIRMED: public RenderDragon shader repositories contain reconstructed BGFX SC and GLSL shader code generated from material.bin data.
 - CONFIRMED: bgfx's public API records rendering commands such as `bgfx::submit()` and advances frame processing with `bgfx::frame()`; bgfx also supports multi-threaded command recording through `bgfx::Encoder`.
 - CONFIRMED: MaterialBinLoader documents an Android ARM/ARM64 native-library loading approach by adding a dependency to `libminecraftpe.so` and rebuilding/signing the modified package.
-- CONFIRMED: KafkaLauncher publicly documents an alternative Android forwarder architecture that locates the real Minecraft native library, resolves the native activity entry point, installs hooks, and forwards execution to the original entry point.
+- CONFIRMED: KafkaLauncher publicly documents an alternative Android forwarder architecture for a specific Minecraft 1.21.51.02 environment.
 - PROBABLE: a useful research boundary exists around the RenderDragon frame-building / command-recording layer and its BGFX submission path.
 - HYPOTHESIS: the production Minecraft Android binary exposes a stable, hookable function corresponding directly to BGFX `submit()` or a single backend submission function.
 - UNKNOWN: exact production Android symbol/address/call chain for frame start, render builder, encoder/command recording, BGFX submit, backend execution and present.
@@ -87,13 +90,17 @@ Runtime evidence records:
 
 ### EXP-002 — Target Detection
 
-Status: **READY — REVISED OBSERVATION-FIRST OBJECTIVE.**
+Status: **IN PROGRESS — BASELINE CONFIRMED; RENDER TARGET UNKNOWN.**
 
 Objective: identify and characterize the relevant native/runtime target associated with Minecraft rendering without assuming bridge execution, a particular renderer hook, or a public function name is identical to the production implementation.
 
-Initial target baseline is already frozen: Minecraft `1.26.45.1`, Android 13, `arm64-v8a`, package `com.mojang.minecraftpe`, observed process PID `11196`, and `libminecraftpe.so` present in the installed native-library directory. `/proc/11196/maps` and `/proc/11196/exe` were denied from the available shell context.
+Initial target baseline is frozen: Minecraft `1.26.45.1`, Android 13, `arm64-v8a`, package `com.mojang.minecraftpe`, observed process PID `11196`, and `libminecraftpe.so` present in the installed native-library directory. `/proc/11196/maps` and `/proc/11196/exe` were denied from the available shell context.
+
+The public-source review has now been expanded with current 1.26-era RenderDragon/shader evidence and Android process/native-library documentation. This strengthens architecture context but does not identify a production hook point.
 
 The revised experiment may use read-only target inventory, legitimate runtime observation, public-source architecture mapping, and comparison against the controlled render-target contract. It must not assume that PVR executes inside retail Minecraft.
+
+Baseline record: `EXPERIMENTS/EXP-002-BASELINE-2026-09-15.md`.
 
 ### EXP-003 — Frame/Render Reachability
 
@@ -139,9 +146,11 @@ Status: NOT STARTED.
 
 ## Immediate Next Step
 
-EXP-001 is now formally closed at the Minecraft target boundary. Do not relabel the controlled result as Minecraft renderer integration.
+EXP-001 is formally closed at the Minecraft target boundary. Do not relabel the controlled result as Minecraft renderer integration.
 
-EXP-002 is the active next step. Start with the frozen target inventory and perform observation-first mapping of the native/runtime/rendering boundary using legitimate, reproducible evidence. Do not begin by importing the entire PVR renderer into Minecraft and do not invent a hook point from public code alone.
+EXP-002 is the active next step. The baseline and public-source review are complete for this checkpoint. The remaining work is direct, legitimate observation of the target runtime boundary. If that boundary remains unavailable from the permitted observation context, record it as `UNKNOWN/BLOCKED` rather than inventing a hook point.
+
+Do not begin by importing the entire PVR renderer into Minecraft and do not use exploit-based or security-boundary-bypass instrumentation.
 
 The minimum desired rendering model remains:
 
@@ -155,10 +164,12 @@ One question, one controlled change, one measurable evidence set. Preserve negat
 
 ## Legal / Repository Boundary
 
-Do not commit proprietary Minecraft APKs, Mojang native libraries, extracted proprietary binaries, or copyrighted binary assets. Keep source, documentation, experiment notes, scripts, configuration and public references.
+Do not commit proprietary Minecraft APKs, Mojang native libraries, extracted proprietary binaries, copyrighted assets, private device identifiers, or unrelated personal logs. Keep source, documentation, experiment notes, scripts, configuration and public references.
 
 ## Latest Research Finding
 
-On 2026-09-15 the controlled Android environment reached a confirmed renderer-side checkpoint: the signed ARM64 test application loaded the PVR bridge in its own process, established a dedicated native render thread, identified its OpenGL ES/EGL backend at runtime, and produced repeated frame BEGIN → RENDERED → PRESENT sequences. The bridge's explicit initialization records PID/TID for direct thread correlation. CI run `34988519395` completed successfully after the `Surface` handoff correction. This closes the lower-level controlled rendering checkpoint. It does not establish Minecraft loading, RenderDragon reachability, BGFX interception, PVR execution inside Minecraft, or GPU work.
+On 2026-09-15 the controlled Android environment reached a confirmed renderer-side checkpoint: the signed ARM64 test application loaded the PVR bridge in its own process, established a dedicated native render thread, identified its OpenGL ES/EGL backend at runtime, and produced repeated frame BEGIN → RENDERED → PRESENT sequences. The bridge's explicit initialization records PID/TID for direct thread correlation. CI run `34988519395` completed successfully after the `Surface` handoff correction. This closes the lower-level controlled rendering checkpoint.
 
-The final EXP-001 decision is therefore: **CONTROLLED CHECKPOINT CONFIRMED; MINECRAFT TARGET BOUNDARY BLOCKED.** EXP-002 is now **READY** with an observation-first objective that does not assume bridge execution inside retail Minecraft.
+The subsequent EXP-002 public-source review confirms that Android's native-library/process model is package-scoped, public Minecraft Android projects demonstrate version-specific controlled process architectures, and current 1.26-era RenderDragon projects expose shader/material evidence. None of these sources identifies the production native RenderDragon frame/submission call chain for Minecraft `1.26.45.1`.
+
+Final state: **EXP-001 CLOSED AT TARGET BOUNDARY; EXP-002 IN PROGRESS WITH BASELINE CONFIRMED; RENDER TARGET UNKNOWN.**
