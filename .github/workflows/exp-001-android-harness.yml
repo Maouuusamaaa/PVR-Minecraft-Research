@@ -1,0 +1,145 @@
+name: EXP-001 Android Native Loading Harness
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "BRIDGE-IMPL/**"
+      - "EXPERIMENTS/EXP-001-HARNESS/**"
+      - ".github/workflows/exp-001-android-harness.yml"
+  workflow_dispatch:
+
+env:
+  ANDROID_API: "android-33"
+  ANDROID_ABI: "arm64-v8a"
+  ANDROID_NDK_VERSION: "26.3.11579264"
+  ANDROID_CMAKE_VERSION: "3.22.1"
+  GRADLE_VERSION: "8.6"
+
+jobs:
+  build-harness:
+    name: Build EXP-001 Android loading harness
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Prepare preinstalled Android SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdk_root="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
+          test -n "$sdk_root"
+          if command -v sdkmanager >/dev/null 2>&1; then
+            sdkmanager_bin="$(command -v sdkmanager)"
+          elif [ -x "$sdk_root/cmdline-tools/latest/bin/sdkmanager" ]; then
+            sdkmanager_bin="$sdk_root/cmdline-tools/latest/bin/sdkmanager"
+          else
+            echo "Android sdkmanager was not found" >&2
+            exit 1
+          fi
+          echo "ANDROID_SDK_ROOT=$sdk_root" >> "$GITHUB_ENV"
+          echo "ANDROID_HOME=$sdk_root" >> "$GITHUB_ENV"
+          echo "SDKMANAGER=$sdkmanager_bin" >> "$GITHUB_ENV"
+          echo "$sdk_root/platform-tools" >> "$GITHUB_PATH"
+          echo "$sdk_root/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+
+      - name: Install pinned Android SDK, NDK, and CMake
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          yes | "$SDKMANAGER" --licenses >/dev/null
+          sdkmanager_status="${PIPESTATUS[1]}"
+          set -e
+          test "$sdkmanager_status" -eq 0
+          "$SDKMANAGER" --install \
+            "platform-tools" \
+            "platforms;android-33" \
+            "ndk;${ANDROID_NDK_VERSION}" \
+            "cmake;${ANDROID_CMAKE_VERSION}"
+          echo "ANDROID_NDK_ROOT=${ANDROID_SDK_ROOT}/ndk/${ANDROID_NDK_VERSION}" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_HOME=${ANDROID_SDK_ROOT}/ndk/${ANDROID_NDK_VERSION}" >> "$GITHUB_ENV"
+          echo "${ANDROID_SDK_ROOT}/cmake/${ANDROID_CMAKE_VERSION}/bin" >> "$GITHUB_PATH"
+
+      - name: Configure and build bridge artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf build-bridge
+          cmake -S BRIDGE-IMPL -B build-bridge -G Ninja \
+            -DCMAKE_TOOLCHAIN_FILE="${ANDROID_NDK_ROOT}/build/cmake/android.toolchain.cmake" \
+            -DANDROID_ABI="${ANDROID_ABI}" \
+            -DANDROID_PLATFORM="${ANDROID_API}" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_ANDROID_STL=c++_shared
+          cmake --build build-bridge --target pvr_minecraft_bridge --verbose
+          mkdir -p EXPERIMENTS/EXP-001-HARNESS/app/src/main/jniLibs/arm64-v8a
+          bridge="$(find build-bridge -type f -name 'libpvr_minecraft_bridge.so' -print -quit)"
+          test -n "$bridge"
+          test -s "$bridge"
+          cp "$bridge" EXPERIMENTS/EXP-001-HARNESS/app/src/main/jniLibs/arm64-v8a/libpvr_minecraft_bridge.so
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: ${{ env.GRADLE_VERSION }}
+
+      - name: Build arm64-v8a harness APK
+        working-directory: EXPERIMENTS/EXP-001-HARNESS
+        run: gradle --no-daemon :app:assembleRelease --stacktrace
+
+      - name: Verify APK packaging and record evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build-evidence
+          apk="$(find EXPERIMENTS/EXP-001-HARNESS/app/build/outputs/apk/release -type f -name '*.apk' -print -quit)"
+          test -n "$apk"
+          test -s "$apk"
+          unzip -l "$apk" | tee build-evidence/apk-contents.txt
+          unzip -l "$apk" | grep -Eq 'lib/arm64-v8a/libpvr_minecraft_bridge\.so'
+          unzip -l "$apk" | grep -Eq 'lib/arm64-v8a/libexp001_harness\.so'
+          apk_sha256="$(sha256sum "$apk" | awk '{print $1}')"
+          apk_size="$(stat -c '%s' "$apk")"
+          bridge_sha256="$(sha256sum EXPERIMENTS/EXP-001-HARNESS/app/src/main/jniLibs/arm64-v8a/libpvr_minecraft_bridge.so | awk '{print $1}')"
+          {
+            echo "EXP-001 ANDROID NATIVE LOADING HARNESS BUILD EVIDENCE"
+            echo "Date: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "Git commit: ${GITHUB_SHA}"
+            echo "Runner: ${RUNNER_NAME}"
+            echo "OS: $(. /etc/os-release && printf '%s %s' \"$NAME\" \"$VERSION_ID\")"
+            echo "Gradle: ${GRADLE_VERSION}"
+            echo "Android API: ${ANDROID_API}"
+            echo "ABI: ${ANDROID_ABI}"
+            echo "NDK: ${ANDROID_NDK_VERSION}"
+            echo "CMake: ${ANDROID_CMAKE_VERSION}"
+            echo "APK: ${apk}"
+            echo "APK size: ${apk_size} bytes"
+            echo "APK SHA-256: ${apk_sha256}"
+            echo "Bridge SHA-256 in jniLibs: ${bridge_sha256}"
+            echo "Required arm64-v8a libraries: PRESENT"
+            echo "Runtime: NOT TESTED (no device execution in this workflow)"
+            echo "Minecraft loading: NOT TESTED"
+            echo "FINAL: PASS"
+          } | tee build-evidence/EXP-001-HARNESS-BUILD.txt
+          cp "$apk" build-evidence/exp-001-android-harness.apk
+
+      - name: Upload harness APK and evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: exp-001-android-harness
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            build-evidence/exp-001-android-harness.apk
+            build-evidence/EXP-001-HARNESS-BUILD.txt
+            build-evidence/apk-contents.txt

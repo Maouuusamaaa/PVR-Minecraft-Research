@@ -1,0 +1,45 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.pvr.exp001.harness'
+    compileSdk 33
+
+    defaultConfig {
+        applicationId 'com.pvr.exp001.harness'
+        minSdk 33
+        targetSdk 33
+        versionCode 1
+        versionName '1.0'
+        ndkVersion '26.3.11579264'
+
+        externalNativeBuild {
+            cmake {
+                arguments '-DANDROID_STL=none'
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path 'src/main/cpp/CMakeLists.txt'
+            version '3.22.1'
+        }
+    }
+
+    splits {
+        abi {
+            enable true
+            reset()
+            include 'arm64-v8a'
+            universalApk false
+        }
+    }
+}
