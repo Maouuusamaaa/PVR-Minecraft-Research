@@ -85,11 +85,9 @@ static void pvr_bridge_constructor(void)
 
 ### Primary Artifact
 
-**`libpvr_minecraft_bridge.so`** (ARM64 shared library)
-- ELF format, ARM aarch64 architecture
-- ~16-32 KB when stripped
-- Depends only on liblog.so (Android standard)
-- No circular dependencies
+**`libpvr_minecraft_bridge.so`** is the expected output (ARM64 shared library).
+Its existence and architecture must be verified from an actual build; the
+repository does not commit a generated binary.
 
 ### Verification
 
@@ -131,15 +129,16 @@ This is optional; the constructor runs automatically.
 
 ## Evidence Collection Strategy
 
-### BUILDABLE/READY (This Implementation)
+### BUILD CONFIGURATION (Source Review)
 
-✅ Achieved at build time:
-- CMake builds without errors
-- Binary is correct ELF format (ARM64)
-- Binary contains initialization code and logging
-- No RenderDragon/BGFX symbols present
-- No Minecraft dependencies present
-- Symbol table is clean
+The source and CMake configuration define:
+- a shared-library target named `pvr_minecraft_bridge`;
+- Android `liblog.so` linkage;
+- constructor-based initialization and logging;
+- no RenderDragon/BGFX hooks or Minecraft proprietary dependencies.
+
+These are source/configuration findings only. They do not prove that CMake,
+the Android NDK, or the linker has successfully produced an ARM64 artifact.
 
 ### TESTED (Runtime Test on Device)
 
@@ -221,4 +220,4 @@ To remove the bridge:
 
 **Architecture Version**: 1.0
 **EXP-001 Phase**: Implementation
-**Status**: BUILDABLE/READY
+**Status**: BUILD CONFIGURATION FIXED — BUILD NOT VERIFIED

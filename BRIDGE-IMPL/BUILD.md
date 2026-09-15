@@ -57,9 +57,9 @@ cd build
 
 ```bash
 cmake .. \
-  -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_ROOT/build/cmake/android.cmake \
+  -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_ROOT/build/cmake/android.toolchain.cmake \
   -DANDROID_ABI=arm64-v8a \
-  -DANDROID_PLATFORM=android-13 \
+  -DANDROID_PLATFORM=android-33 \
   -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_ANDROID_STL=c++_shared
 ```
@@ -67,7 +67,7 @@ cmake .. \
 **Explanation of flags:**
 - `CMAKE_TOOLCHAIN_FILE`: Tells CMake to use the Android NDK toolchain
 - `ANDROID_ABI`: Target architecture (arm64-v8a for 64-bit ARM)
-- `ANDROID_PLATFORM`: Minimum Android API level (13 = Android 13)
+- `ANDROID_PLATFORM`: Minimum Android API level (33 = Android 13)
 - `CMAKE_BUILD_TYPE`: Release build (optimized)
 - `CMAKE_ANDROID_STL`: C++ standard library (c++_shared allows linking liblog.so)
 
@@ -104,7 +104,10 @@ libpvr_minecraft_bridge.so: ELF 64-bit LSB shared object, ARM aarch64, version 1
 ### 5. Run Static Checks (Optional)
 
 ```bash
-cmake --build . --target HeaderInclusionCheck
+# `check_headers_only` is the CMake build target.
+cmake --build . --target check_headers_only
+
+# `HeaderInclusionCheck` is the CTest name.
 ctest --verbose
 ```
 
@@ -153,17 +156,23 @@ If cross-compilation from a build host is not available, the NDK can also be use
 
 The bridge can also be loaded via a forwarder library that locates and patches the Minecraft native library at runtime. This is documented in EXP-002 and later experiments.
 
-## Evidence Collected at Build Time
+## Build Configuration Status
 
-The following are confirmed BUILDABLE/READY:
+The repository contains an Android ARM64 build configuration, but this checkout
+does not contain a verified build log or a generated shared-library artifact.
+The following are source/configuration properties, not execution evidence:
 
-- ✅ CMake configuration compiles for Android ARM64
-- ✅ Bridge initializes with logging infrastructure
-- ✅ Initialization marker is defined and callable
-- ✅ No RenderDragon hooks present
-- ✅ No BGFX interception present
-- ✅ No Minecraft proprietary code present
-- ✅ No external dependencies beyond liblog.so (standard Android)
+- CMake target requests `arm64-v8a` when configured with the Android NDK.
+- The bridge links against Android's `liblog.so` when `ANDROID` is enabled.
+- The initialization marker is defined in source.
+- No RenderDragon hooks, BGFX interception, or Minecraft proprietary code are present.
+
+**Current verification record (2026-09-15):**
+
+`ANDROID ARM64 BUILD NOT EXECUTED — Android NDK, CMake, and compiler are unavailable in the audit environment.`
+
+Therefore no claim is made here that `libpvr_minecraft_bridge.so` has been
+compiled, linked, or verified as an ARM64 ELF artifact.
 
 ## Evidence Required for TESTED
 
@@ -237,5 +246,5 @@ After EXP-001 TESTED (runtime observation on device):
 
 ---
 
-**Last Updated**: EXP-001 Implementation Phase
-**Status**: BUILDABLE/READY (awaiting runtime test)
+**Last Updated**: EXP-001 build configuration audit
+**Status**: BUILD CONFIGURATION FIXED — BUILD NOT VERIFIED

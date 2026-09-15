@@ -32,8 +32,8 @@ else()
     message(WARNING "[PVR-Bridge] Not configured for Android. This bridge is intended for Android ARM64 only.")
 endif()
 
-# Ensure ARM64 target
-if(NOT ANDROID_ABI MATCHES "arm64-v8a")
+# Ensure ARM64 target when using the Android toolchain
+if(ANDROID AND NOT ANDROID_ABI STREQUAL "arm64-v8a")
     message(WARNING "[PVR-Bridge] Expected ANDROID_ABI=arm64-v8a, got ${ANDROID_ABI}")
 endif()
 
@@ -79,6 +79,7 @@ add_executable(check_headers_only
     test/check_headers.c
 )
 target_include_directories(check_headers_only PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(check_headers_only PRIVATE pvr_minecraft_bridge)
 
 add_test(
     NAME HeaderInclusionCheck
