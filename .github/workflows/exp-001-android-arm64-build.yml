@@ -1,0 +1,172 @@
+name: EXP-001 Android ARM64 Build Verification
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "BRIDGE-IMPL/**"
+      - ".github/workflows/exp-001-android-arm64-build.yml"
+  workflow_dispatch:
+
+env:
+  ANDROID_API: "android-33"
+  ANDROID_ABI: "arm64-v8a"
+  ANDROID_NDK_VERSION: "26.3.11579264"
+  ANDROID_CMAKE_VERSION: "3.22.1"
+
+jobs:
+  build-verification:
+    name: Build and verify Android ARM64 bridge
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install pinned Android SDK, NDK, and CMake
+        shell: bash
+        run: |
+          set -euo pipefail
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager --install \
+            "platform-tools" \
+            "platforms;android-33" \
+            "ndk;${ANDROID_NDK_VERSION}" \
+            "cmake;${ANDROID_CMAKE_VERSION}"
+          echo "ANDROID_NDK_ROOT=${ANDROID_SDK_ROOT}/ndk/${ANDROID_NDK_VERSION}" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_HOME=${ANDROID_SDK_ROOT}/ndk/${ANDROID_NDK_VERSION}" >> "$GITHUB_ENV"
+          echo "${ANDROID_SDK_ROOT}/cmake/${ANDROID_CMAKE_VERSION}/bin" >> "$GITHUB_PATH"
+          echo "${ANDROID_SDK_ROOT}/ndk/${ANDROID_NDK_VERSION}/toolchains/llvm/prebuilt/linux-x86_64/bin" >> "$GITHUB_PATH"
+
+      - name: Record build environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "OS: $(. /etc/os-release && printf '%s %s' \"$NAME\" \"$VERSION_ID\")"
+            echo "CMake: $(cmake --version | head -n 1)"
+            echo "Ninja: $(ninja --version)"
+            echo "NDK: ${ANDROID_NDK_VERSION}"
+            echo "Compiler: $(\"${ANDROID_NDK_ROOT}/toolchains/llvm/prebuilt/linux-x86_64/bin/clang\" --version | head -n 1)"
+            echo "Android API: ${ANDROID_API}"
+            echo "ABI: ${ANDROID_ABI}"
+          } | tee build-environment.txt
+
+      - name: Host configure
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf build-host
+          cmake -S BRIDGE-IMPL -B build-host -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Host build and CTest
+        shell: bash
+        run: |
+          set -euo pipefail
+          cmake --build build-host --target check_headers_only --verbose
+          ctest --test-dir build-host --output-on-failure --verbose
+
+      - name: Android ARM64 configure
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf build-android
+          cmake -S BRIDGE-IMPL -B build-android -G Ninja \
+            -DCMAKE_TOOLCHAIN_FILE="${ANDROID_NDK_ROOT}/build/cmake/android.toolchain.cmake" \
+            -DANDROID_ABI="${ANDROID_ABI}" \
+            -DANDROID_PLATFORM="${ANDROID_API}" \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_ANDROID_STL=c++_shared
+
+      - name: Android ARM64 build
+        shell: bash
+        run: |
+          set -euo pipefail
+          cmake --build build-android --target pvr_minecraft_bridge --verbose
+
+      - name: Verify ARM64 ELF and record evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build-evidence
+          artifact="$(find build-android -type f -name 'libpvr_minecraft_bridge.so' -print -quit)"
+          test -n "$artifact"
+          test -s "$artifact"
+
+          llvm_readelf="${ANDROID_NDK_ROOT}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-readelf"
+          llvm_nm="${ANDROID_NDK_ROOT}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-nm"
+          test -x "$llvm_readelf"
+          test -x "$llvm_nm"
+
+          file_output="$(file "$artifact")"
+          readelf_header="$("$llvm_readelf" -h "$artifact")"
+          readelf_dynamic="$("$llvm_readelf" -d "$artifact")"
+          symbols="$("$llvm_nm" -D "$artifact")"
+
+          printf '%s\n' "$file_output" | tee build-evidence/file.txt
+          printf '%s\n' "$readelf_header" | tee build-evidence/readelf-header.txt
+          printf '%s\n' "$readelf_dynamic" | tee build-evidence/readelf-dynamic.txt
+          printf '%s\n' "$symbols" | tee build-evidence/symbols.txt
+
+          grep -Eq 'ELF 64-bit.*AArch64|ELF 64-bit.*ARM aarch64' <<< "$file_output"
+          grep -Eq 'Class:.*ELF64' <<< "$readelf_header"
+          grep -Eq 'Machine:.*AArch64' <<< "$readelf_header"
+          ! grep -Eiq 'minecraft|libminecraftpe' <<< "$readelf_dynamic"
+          grep -q 'bridge_initialize' <<< "$symbols"
+
+          sha256="$(sha256sum "$artifact" | awk '{print $1}')"
+          size="$(stat -c '%s' "$artifact")"
+          {
+            echo "EXP-001 ARM64 BUILD EVIDENCE"
+            echo "Date: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "Git commit: ${GITHUB_SHA}"
+            echo "Runner: ${RUNNER_NAME}"
+            cat build-environment.txt
+            echo ""
+            echo "CONFIGURE:"
+            echo "cmake -S BRIDGE-IMPL -B build-android -G Ninja -DCMAKE_TOOLCHAIN_FILE=\"\${ANDROID_NDK_ROOT}/build/cmake/android.toolchain.cmake\" -DANDROID_ABI=\"${ANDROID_ABI}\" -DANDROID_PLATFORM=\"${ANDROID_API}\" -DCMAKE_BUILD_TYPE=Release -DCMAKE_ANDROID_STL=c++_shared"
+            echo "BUILD:"
+            echo "cmake --build build-android --target pvr_minecraft_bridge --verbose"
+            echo "TEST:"
+            echo "cmake --build build-host --target check_headers_only --verbose"
+            echo "ctest --test-dir build-host --output-on-failure --verbose"
+            echo "ARTIFACT: ${artifact}"
+            echo "SIZE: ${size} bytes"
+            echo "FILE:"
+            cat build-evidence/file.txt
+            echo "READELF HEADER:"
+            cat build-evidence/readelf-header.txt
+            echo "READELF DYNAMIC:"
+            cat build-evidence/readelf-dynamic.txt
+            echo "EXPORTED/DEFINED DYNAMIC SYMBOLS:"
+            cat build-evidence/symbols.txt
+            echo "SHA256: ${sha256}"
+            echo "FINAL: PASS"
+          } | tee build-evidence/EXP-001-ARM64-BUILD.txt
+
+          cp "$artifact" build-evidence/libpvr_minecraft_bridge.so
+
+      - name: Upload ARM64 artifact and build evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: exp-001-android-arm64
+          if-no-files-found: error
+          path: |
+            build-evidence/libpvr_minecraft_bridge.so
+            build-evidence/EXP-001-ARM64-BUILD.txt
+            build-evidence/file.txt
+            build-evidence/readelf-header.txt
+            build-evidence/readelf-dynamic.txt
+            build-evidence/symbols.txt
+            build-environment.txt
+          retention-days: 30
