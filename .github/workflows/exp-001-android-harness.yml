@@ -15,6 +15,7 @@ env:
   ANDROID_ABI: "arm64-v8a"
   ANDROID_NDK_VERSION: "26.3.11579264"
   ANDROID_CMAKE_VERSION: "3.22.1"
+  ANDROID_BUILD_TOOLS_VERSION: "35.0.0"
   GRADLE_VERSION: "8.6"
 
 jobs:
@@ -65,7 +66,8 @@ jobs:
             "platform-tools" \
             "platforms;android-33" \
             "ndk;${ANDROID_NDK_VERSION}" \
-            "cmake;${ANDROID_CMAKE_VERSION}"
+            "cmake;${ANDROID_CMAKE_VERSION}" \
+            "build-tools;${ANDROID_BUILD_TOOLS_VERSION}"
           echo "ANDROID_NDK_ROOT=${ANDROID_SDK_ROOT}/ndk/${ANDROID_NDK_VERSION}" >> "$GITHUB_ENV"
           echo "ANDROID_NDK_HOME=${ANDROID_SDK_ROOT}/ndk/${ANDROID_NDK_VERSION}" >> "$GITHUB_ENV"
           echo "${ANDROID_SDK_ROOT}/cmake/${ANDROID_CMAKE_VERSION}/bin" >> "$GITHUB_PATH"
@@ -93,21 +95,34 @@ jobs:
         with:
           gradle-version: ${{ env.GRADLE_VERSION }}
 
-      - name: Build arm64-v8a harness APK
+      - name: Build signed arm64-v8a harness APK
         working-directory: EXPERIMENTS/EXP-001-HARNESS
-        run: gradle --no-daemon :app:assembleRelease --stacktrace
+        run: gradle --no-daemon :app:assembleDebug --stacktrace
 
-      - name: Verify APK packaging and record evidence
+      - name: Verify signed APK, package metadata, and native libraries
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p build-evidence
-          apk="$(find EXPERIMENTS/EXP-001-HARNESS/app/build/outputs/apk/release -type f -name '*.apk' -print -quit)"
+          apk="$(find EXPERIMENTS/EXP-001-HARNESS/app/build/outputs/apk/debug -type f -name '*.apk' -print -quit)"
           test -n "$apk"
           test -s "$apk"
           unzip -l "$apk" | tee build-evidence/apk-contents.txt
           unzip -l "$apk" | grep -Eq 'lib/arm64-v8a/libpvr_minecraft_bridge\.so'
           unzip -l "$apk" | grep -Eq 'lib/arm64-v8a/libexp001_harness\.so'
+          build_tools="${ANDROID_SDK_ROOT}/build-tools"
+          apksigner="$(find "$build_tools" -type f -name apksigner -print | sort -V | tail -n1)"
+          aapt2="$(find "$build_tools" -type f -name aapt2 -print | sort -V | tail -n1)"
+          zipalign="$(find "$build_tools" -type f -name zipalign -print | sort -V | tail -n1)"
+          test -x "$apksigner"
+          test -x "$aapt2"
+          test -x "$zipalign"
+          "$apksigner" verify --verbose --print-certs "$apk" | tee build-evidence/signing-verification.txt
+          grep -Eq 'Verified using v2 scheme \(APK Signature Scheme v2\): true|Verified using v3 scheme \(APK Signature Scheme v3\): true' build-evidence/signing-verification.txt
+          grep -Eq 'Signer #1 certificate DN:' build-evidence/signing-verification.txt
+          "$aapt2" dump badging "$apk" | tee build-evidence/package-metadata.txt
+          grep -Eq "package: name='com\.pvr\.exp001\.harness'" build-evidence/package-metadata.txt
+          "$zipalign" -c -v 4 "$apk" | tee build-evidence/zipalign-verification.txt
           apk_sha256="$(sha256sum "$apk" | awk '{print $1}')"
           apk_size="$(stat -c '%s' "$apk")"
           bridge_sha256="$(sha256sum EXPERIMENTS/EXP-001-HARNESS/app/src/main/jniLibs/arm64-v8a/libpvr_minecraft_bridge.so | awk '{print $1}')"
@@ -126,20 +141,25 @@ jobs:
             echo "APK size: ${apk_size} bytes"
             echo "APK SHA-256: ${apk_sha256}"
             echo "Bridge SHA-256 in jniLibs: ${bridge_sha256}"
+            echo "Signing: DEBUG KEYSTORE (Gradle standard; no repository secret)"
+            echo "Package manager checks: apksigner PASS; aapt2 package identity PASS; zipalign PASS"
             echo "Required arm64-v8a libraries: PRESENT"
             echo "Runtime: NOT TESTED (no device execution in this workflow)"
             echo "Minecraft loading: NOT TESTED"
             echo "FINAL: PASS"
           } | tee build-evidence/EXP-001-HARNESS-BUILD.txt
-          cp "$apk" build-evidence/exp-001-android-harness.apk
+          cp "$apk" build-evidence/exp-001-android-harness-signed.apk
 
-      - name: Upload harness APK and evidence
+      - name: Upload signed harness APK and evidence
         uses: actions/upload-artifact@v4
         with:
-          name: exp-001-android-harness
+          name: exp-001-android-harness-signed
           if-no-files-found: error
           retention-days: 30
           path: |
-            build-evidence/exp-001-android-harness.apk
+            build-evidence/exp-001-android-harness-signed.apk
             build-evidence/EXP-001-HARNESS-BUILD.txt
             build-evidence/apk-contents.txt
+            build-evidence/signing-verification.txt
+            build-evidence/package-metadata.txt
+            build-evidence/zipalign-verification.txt
