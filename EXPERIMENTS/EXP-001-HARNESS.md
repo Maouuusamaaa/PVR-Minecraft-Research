@@ -106,118 +106,66 @@ It performs the following operations:
 
 ## APK Verification
 
-The workflow verifies the actual APK archive, not only the source tree:
+The workflow verifies the actual APK archive, not only the source tree. It records the APK size, APK SHA-256, and bridge SHA-256 in `EXP-001-HARNESS-BUILD.txt`.
 
-```bash
-unzip -l exp-001-android-harness.apk
-```
+The signed APK is checked with the Android Build Tools `apksigner`, `aapt2`, and `zipalign`. These checks are package/signing checks only; they do not execute the APK.
 
-The required native entries are checked with exact `arm64-v8a` paths. The workflow also records the APK size, APK SHA-256, and bridge SHA-256 in `EXP-001-HARNESS-BUILD.txt`.
+## Runtime Result — 2026-09-15
 
-The signed APK is checked with the Android Build Tools `apksigner`, `aapt2`,
-and `zipalign`. The checks require a valid signature, one signer with the
-standard Android debug certificate, the package identity
-`com.pvr.exp001.harness`, and successful four-byte alignment. These checks are
-package/signing checks only; they do not execute the APK.
+The signed APK was downloaded to the user's Android 13 device, independently hashed, copied to `/data/local/tmp`, and installed with Android's package manager.
 
-## Runtime Procedure
-
-Runtime execution requires an authorized Android device or emulator with `adb`. The current environment has no available `adb` device or emulator, so no runtime result is claimed.
-
-On a controlled device, after installing the harness APK from the Actions artifact:
-
-```bash
-adb install -r exp-001-android-harness.apk
-adb logcat -c
-adb shell monkey -p com.pvr.exp001.harness 1
-adb shell pidof com.pvr.exp001.harness
-adb logcat -v threadtime -d -s PVR-Bridge:* EXP-001-Harness:* '*:S'
-```
-
-The expected marker from a successful harness run is:
+Device-side APK SHA-256:
 
 ```text
-PVR-Bridge: MARKER: PVR_BRIDGE_LOADED
+fdbbd7df546e323e766aac3c81c04efee29e129f4762220c7ae8de363757e38d
 ```
 
-The output should also include the bridge PID/TID lines and the harness process PID should be recorded separately. The exact device model, Android version, ABI, package, PID, timestamp, APK hash, and unedited logcat output must be preserved in the runtime record.
+This exactly matches the SHA-256 recorded in the downloaded `EXP-001-HARNESS-BUILD.txt` evidence.
 
-## Logcat Evidence
+Installation result:
 
-A marker string inside the `.so` or APK is not runtime evidence. Runtime evidence requires an actual launch and logcat capture showing:
+```text
+~/rish -c 'pm install -r /data/local/tmp/exp-001-android-harness-signed.apk'
+Success
+```
 
-1. The harness APK launched successfully.
-2. The bridge constructor ran.
-3. `PVR_BRIDGE_LOADED` appeared during that launch.
-4. The bridge PID matches the harness PID.
-5. The artifact and device details are recorded.
+Package registration:
 
-The workflow intentionally does not claim these facts because it only builds and packages the APK.
+```text
+package:com.pvr.exp001.harness
+```
 
-## Result
+The harness was then launched after clearing logcat. The `PVR-Bridge` stream produced:
 
-Current status:
+```text
+09-15 21:44:26.607  8936  8936 I PVR-Bridge: Bridge constructor running
+09-15 21:44:26.607  8936  8936 I PVR-Bridge: Process ID (PID): 8936
+09-15 21:44:26.607  8936  8936 I PVR-Bridge: Thread ID (TID): 8936
+09-15 21:44:26.607  8936  8936 I PVR-Bridge: MARKER: PVR_BRIDGE_LOADED
+09-15 21:44:26.607  8936  8936 I PVR-Bridge: Bridge initialization complete
+09-15 21:44:26.620  8936  8936 I PVR-Bridge: bridge_initialize() called explicitly
+```
+
+Full device evidence is preserved in `EXP-001-HARNESS-RUNTIME-2026-09-15.md`.
+
+## Runtime Classification
 
 ```text
 APK BUILD: CONFIRMED
 ARM64 PACKAGING: CONFIRMED
-ANDROID NATIVE LOADING: NOT TESTED
-BRIDGE INITIALIZATION: NOT TESTED
+APK INSTALLATION: CONFIRMED
+ANDROID NATIVE LOADING IN CONTROLLED HARNESS: CONFIRMED
+BRIDGE CONSTRUCTOR EXECUTION: CONFIRMED
+PVR_BRIDGE_LOADED: CONFIRMED
+BRIDGE INITIALIZATION: CONFIRMED
 MINECRAFT LOADING: NOT TESTED
 ```
 
-GitHub Actions run [34982585986](https://github.com/Maouuusamaaa/PVR-Minecraft-Research/actions/runs/34982585986)
-completed successfully for commit `9595a2f154b8f5319ecb0da3fbe3d5dd4f009f6f`.
+The observed bridge PID was `8936`. The marker and initialization messages occurred in the same PID/TID, establishing that the bridge constructor and explicit initialization executed in the controlled harness process.
 
-Actual APK evidence:
+## Important Boundary
 
-| Field | Value |
-|---|---|
-| Filename | `app-arm64-v8a-debug.apk` |
-| Size | `44115` bytes |
-| SHA-256 | `22e70a750539d317a80ea84f331f54b475728c86f3ef52b76ef19f71e7ed2b0b` |
-| APK entries | `lib/arm64-v8a/libexp001_harness.so`, `lib/arm64-v8a/libpvr_minecraft_bridge.so` |
-| Embedded bridge SHA-256 | `ab85db08a9ddf24fbc6aafa67d8b74987ddad314d93e2c08b15757a2a04b4228` |
-| Signing | Standard Android Debug certificate; APK Signature Scheme v2 verified |
-| Certificate DN | `C=US, O=Android, CN=Android Debug` |
-| Certificate SHA-256 | `475e1c7bc56b60c3e2dd946038106755c07c6c05ce1ed395d4269dd4cf7da10a` |
-| Package | `com.pvr.exp001.harness` |
-| Native code | `arm64-v8a` |
-| Zip alignment | **PASS** |
-| Runtime | **NOT TESTED** |
-
-The artifact is available as the GitHub Actions artifact
-`exp-001-android-harness-signed`. The downloaded APK hash was independently
-recomputed and matched the workflow evidence. The embedded bridge hash differs
-from the earlier standalone build hash because the harness workflow rebuilds the
-bridge from source in a separate job; the workflow verifies the resulting
-artifact's packaging and source build, but does not claim bit-for-bit
-reproducibility across independent native builds. The earlier standalone
-artifact remains identified by
-`8a986f71e7a670f8f0141c07a8330174b3e1fb6e6d7eddf47b91bbd639826a73`.
-
-These results confirm signed APK creation, certificate presence, package
-identity, ARM64 packaging, and static native-library inclusion only. They do
-not confirm that Android loaded the library or that the bridge constructor
-emitted a marker.
-
-## Limitations
-
-- No Android device or emulator is available in the current environment.
-- No `adb` runtime capture has been performed.
-- The harness is not Minecraft and cannot prove loading into Minecraft.
-- The bridge artifact is loaded through the normal Android application mechanism, not injected into another process.
-- The harness does not validate RenderDragon, BGFX, renderer reachability, or GPU execution.
-
-## Relation to Minecraft EXP-001
-
-The harness provides a controlled lower-level checkpoint:
-
-```text
-Android package contains bridge
-→ Android application loads bridge
-→ bridge constructor emits marker
-```
+The successful harness result does not prove Minecraft loading. The harness uses the normal Android application loading mechanism and is deliberately isolated from Minecraft.
 
 The separate Minecraft question remains:
 
@@ -228,13 +176,15 @@ libpvr_minecraft_bridge.so
 → marker correlated with Minecraft PID
 ```
 
-Only the second chain can establish Minecraft loading. Even a successful harness runtime test must leave:
+Only that second chain can establish Minecraft loading.
 
-```text
-Minecraft loading = NOT TESTED
-EXP-001 overall = NOT CONFIRMED
-```
+## Limitations
+
+- The harness is not Minecraft.
+- The harness does not validate RenderDragon, BGFX, renderer reachability, or GPU execution.
+- No Minecraft process was targeted by this runtime test.
+- No proprietary Minecraft APK or native library was used or committed.
 
 ## Next Step
 
-Run the harness on an authorized `arm64-v8a` Android device or emulator, collect real logcat and PID evidence, and record the result separately. Do not use the harness result as evidence of Minecraft loading and do not proceed to EXP-002 based only on this checkpoint.
+The controlled Android runtime checkpoint is complete. Before EXP-002, the remaining EXP-001 target requirement is a legitimate, reproducible and reversible loading boundary for the user's Minecraft installation. If that cannot be established, keep Minecraft loading classified as `BLOCKED`/`NOT TESTED` and do not infer it from the harness result.
