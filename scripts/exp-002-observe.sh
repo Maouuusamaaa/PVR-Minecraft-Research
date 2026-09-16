@@ -35,7 +35,9 @@ run_rish() {
     echo "=== PROCESS IDENTITY ==="
     # pidof can be unavailable/inconsistent through the available rish shell context.
     # Resolve the package PID from the same read-only process table used below.
-    PID="$(run_rish "ps -A -o USER,PID,PPID,NAME 2>/dev/null | grep -E '[[:space:]]${PKG}$' | head -n 1" 2>/dev/null | sed 's/^ *//' | cut -d ' ' -f 2 | tr -d '\r')"
+    PS_LINE="$(run_rish "ps -A -o USER,PID,PPID,NAME 2>/dev/null | grep -E '[[:space:]]${PKG}$' | head -n 1" 2>/dev/null | tr -d '\r')"
+    PID="$(printf '%s\n' "$PS_LINE" | sed -n 's/^[^[:space:]]*[[:space:]][[:space:]]*\([0-9][0-9]*\)[[:space:]].*$/\1/p')"
+    echo "process_line=${PS_LINE:-NOT_FOUND}"
     echo "pid=${PID:-NOT_RUNNING}"
     if [ -n "${PID:-}" ]; then
         run_rish "ps -A -o USER,PID,PPID,NAME | grep -E '(^| )${PID} '"
