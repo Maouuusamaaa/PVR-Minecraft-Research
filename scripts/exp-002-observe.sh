@@ -33,7 +33,8 @@ run_rish() {
     echo
 
     echo "=== PROCESS IDENTITY ==="
-    PID="$(run_rish "pidof $PKG" 2>/dev/null | tr -d '\r' | awk '{print \$1}')"
+    PID_RAW="$(run_rish "pidof $PKG" 2>/dev/null | tr -d '\r')"
+    PID="$(printf '%s\n' "$PID_RAW" | sed 's/[[:space:]].*$//')"
     echo "pid=${PID:-NOT_RUNNING}"
     if [ -n "${PID:-}" ]; then
         run_rish "ps -A -o USER,PID,PPID,NAME | grep -E '(^| )${PID} '"
@@ -83,4 +84,4 @@ run_rish() {
 } | tee "$OUT"
 
 echo
- echo "Observation saved to: $OUT"
+echo "Observation saved to: $OUT"
