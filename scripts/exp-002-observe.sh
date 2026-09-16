@@ -33,14 +33,14 @@ run_rish() {
     echo
 
     echo "=== PROCESS IDENTITY ==="
-    # pidof can be unavailable/inconsistent through the available rish shell context.
-    # Resolve the package PID from the same read-only process table used below.
-    PS_LINE="$(run_rish "ps -A -o USER,PID,PPID,NAME 2>/dev/null | grep -E '[[:space:]]${PKG}$' | head -n 1" 2>/dev/null | tr -d '\r')"
-    PID="$(printf '%s\n' "$PS_LINE" | sed -n 's/^[^[:space:]]*[[:space:]][[:space:]]*\([0-9][0-9]*\)[[:space:]].*$/\1/p')"
+    # Resolve from the same read-only process table used below. Keep the raw line
+    # for auditability, then extract the PID as the second whitespace-delimited field.
+    PS_LINE="$(run_rish "ps -A -o USER,PID,PPID,NAME 2>/dev/null | grep -Ei '[[:space:]]com\\.mojang\\.minecraftpe$' | head -n 1" 2>/dev/null | tr -d '\r')"
+    PID="$(printf '%s\n' "$PS_LINE" | sed -n 's/^[^[:space:]][^[:space:]]*[[:space:]][[:space:]]*\([0-9][0-9]*\)[[:space:]].*$/\1/p')"
     echo "process_line=${PS_LINE:-NOT_FOUND}"
     echo "pid=${PID:-NOT_RUNNING}"
     if [ -n "${PID:-}" ]; then
-        run_rish "ps -A -o USER,PID,PPID,NAME | grep -E '(^| )${PID} '"
+        run_rish "ps -A -o USER,PID,PPID,NAME | grep -E '(^|[[:space:]])${PID}[[:space:]]'"
         echo
         echo "--- /proc status ---"
         run_rish "cat /proc/${PID}/status 2>&1 | grep -E '^(Name|State|Pid|PPid|Uid|Gid|Threads):'"
@@ -77,7 +77,7 @@ run_rish() {
     echo
 
     echo "=== RUNNING MINECRAFT-RELATED PROCESSES ==="
-    run_rish "ps -A -o USER,PID,PPID,NAME 2>&1 | grep -Ei 'minecraft|mojang|com.mojang' | head -n 80"
+    run_rish "ps -A -o USER,PID,PPID,NAME 2>&1 | grep -Ei 'minecraft|mojang|com\\.mojang' | head -n 80"
     echo
 
     echo "=== EXP-002 CLASSIFICATION ==="
